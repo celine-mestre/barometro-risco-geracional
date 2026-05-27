@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Barómetro de Risco Geracional · Administração Pública Central Portuguesa · UPE · SGGov</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+:root{
+  --vd:#0E7433;--vm:#D02117;--az:#2B5683;--do:#BE9C54;--al:#C05010;
+  --vd10:rgba(14,116,51,.09);--vm10:rgba(208,33,23,.07);--az10:rgba(43,86,131,.08);--do10:rgba(190,156,84,.1);
+  --bg:#F5F3EE;--surface:#fff;--text:#1a1a18;--muted:#5a5a55;--border:#dddbd4;--light:#eeecea;
+  --font:'Lexend',Arial,sans-serif;--r4:4px;--r8:8px;--overlay:rgba(30,28,24,.4);
+}
+[data-theme="dark"]{
+  --bg:#111210;--surface:#1c1c1a;--text:#f0ede8;--muted:#9a9790;--border:#2e2d2a;--light:#252522;
+  --vd10:rgba(14,116,51,.12);--az10:rgba(43,86,131,.14);--do10:rgba(190,156,84,.1);--vm10:rgba(208,33,23,.1);
+  --overlay:rgba(0,0,0,.65);color-scheme:dark;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-weight:300;line-height:1.55;overflow-x:hidden;transition:background .2s,color .2s}
+.app{display:grid;grid-template-columns:252px 1fr;grid-template-rows:52px 1fr;height:100dvh}
+/* ── TOPBAR ── */
+.topbar{
+  grid-column:1/-1;
+  background:linear-gradient(120deg,var(--az) 0%,#1a3f6f 28%,var(--vd) 62%,#0a5228 100%);
+  border-bottom:3px solid var(--vm);
+  display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:200;
+}
+.tb-text{color:#fff;font-size:9px;font-weight:300;line-height:1.45}
+.tb-text strong{font-weight:700;font-size:12px;display:block}
+.tb-text em{font-style:normal;opacity:.7;font-size:8.5px;letter-spacing:.03em}
+.tb-right{display:flex;align-items:center;gap:6px}
+.hdr-btn{height:28px;padding:0 10px;border-radius:var(--r4);border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.12);color:#fff;cursor:pointer;font-family:var(--font);font-size:10px;font-weight:500;display:flex;align-items:center;gap:5px;transition:background .15s;white-space:nowrap}
+.hdr-btn:hover{background:rgba(255,255,255,.24)}
+.hdr-btn-icon{width:28px;padding:0;justify-content:center}
+/* ── SIDEBAR ── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;padding:14px 10px;display:flex;flex-direction:column;gap:16px}
+.sidebar::-webkit-scrollbar{width:2px}.sidebar::-webkit-scrollbar-thumb{background:var(--vd);border-radius:2px}
+.s-label{font-size:8px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);padding:0 8px;margin-bottom:4px}
+.filter-group{display:flex;flex-direction:column;gap:3px}
+.fchip{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--r4);cursor:pointer;border:1px solid transparent;font-size:10px;color:var(--muted);transition:all .15s;font-family:var(--font)}
+.fchip:hover{background:var(--light);color:var(--text)}.fchip.active{background:var(--light);border-color:var(--border);color:var(--text)}
+.fchip-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}.fchip-n{margin-left:auto;font-size:8px;opacity:.45}
+.min-list{display:flex;flex-direction:column;gap:2px}
+.mitem{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:var(--r4);cursor:pointer;border:1px solid transparent;transition:all .15s}
+.mitem:hover{background:var(--light)}.mitem.active{background:var(--vd10);border-color:rgba(14,116,51,.25)}
+.mitem.hidden{display:none}.mitem-icon{font-size:12px;width:18px;text-align:center;flex-shrink:0}
+.mitem-name{font-size:9px;font-weight:300;flex:1;line-height:1.35;color:var(--muted)}
+.mitem.active .mitem-name{color:var(--text);font-weight:500}
+.mitem-score{font-size:10px;font-weight:600}
+/* ── MAIN ── */
+.main{overflow:hidden;display:grid;grid-template-rows:1fr auto;position:relative;background:var(--bg)}
+.radar-area{display:flex;align-items:center;justify-content:center;position:relative;padding:16px 20px;overflow:hidden}
+.radar-wrap{position:relative;width:min(560px,100%);aspect-ratio:1}
+#radarChart{width:100%!important;height:100%!important}
+.radar-hint{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);font-size:8px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);white-space:nowrap;pointer-events:none}
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--border);background:var(--surface)}
+.kpi{padding:10px 14px;border-right:1px solid var(--border)}.kpi:last-child{border-right:none}
+.kpi-val{font-size:17px;font-weight:700;line-height:1;margin-bottom:2px;letter-spacing:-.01em}
+.kpi-lbl{font-size:7.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:500;line-height:1.35}
+/* ── OVERLAYS ── */
+.overlay{position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(5px);z-index:500;display:none;align-items:center;justify-content:center;padding:16px}
+.overlay.open{display:flex}
+.popup{background:var(--surface);border:1px solid var(--border);border-radius:var(--r8);width:100%;max-width:600px;max-height:90dvh;overflow-y:auto;animation:up .2s ease;box-shadow:0 12px 48px rgba(0,0,0,.15)}
+.popup::-webkit-scrollbar{width:2px}.popup::-webkit-scrollbar-thumb{background:var(--vd);border-radius:2px}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.pop-hdr{background:linear-gradient(120deg,var(--az) 0%,#1a3f6f 30%,var(--vd) 65%,#0a5228 100%);border-bottom:2px solid var(--vm);display:flex;align-items:flex-start;justify-content:space-between;padding:14px 16px 12px;position:sticky;top:0;z-index:2}
+.pop-hdr-title{font-size:13px;font-weight:700;color:#fff;line-height:1.2}
+.pop-hdr-sub{font-size:8px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:2px}
+.pop-close{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;margin-top:1px}
+.pop-close:hover{background:rgba(255,255,255,.3)}
+.pop-body{padding:16px}
+/* meta popup */
+.formula-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.fg-cell{background:var(--bg);border:1px solid var(--border);border-radius:var(--r4);padding:11px 13px;border-left-width:3px}
+.fg-weight{font-size:20px;font-weight:800;line-height:1;margin-bottom:2px}
+.fg-name{font-size:10px;font-weight:600;margin-bottom:3px}
+.fg-desc{font-size:9px;color:var(--muted);line-height:1.55;font-weight:300}
+.scale-row{display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid var(--light)}.scale-row:last-child{border:none}
+.scale-bar{height:4px;border-radius:2px;flex:1}.scale-rng{font-size:9px;font-weight:700;width:60px}.scale-lbl{font-size:9px;color:var(--muted);width:85px;text-align:right;font-weight:300}
+.meta-note{font-size:9px;color:var(--muted);line-height:1.65;margin-top:12px;padding-top:10px;border-top:1px solid var(--light);font-weight:300}
+/* area popup */
+.ap-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.ap-icon{font-size:30px;flex-shrink:0;line-height:1}
+.ap-name{font-size:16px;font-weight:700;line-height:1.2;margin-bottom:2px}
+.ap-acr{font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:400}
+.ap-score{font-size:36px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.ap-level{font-size:8px;letter-spacing:.12em;text-transform:uppercase;margin-top:1px;font-weight:600}
+.ap-bar-wrap{margin-bottom:14px}
+.ap-bar-lbl{display:flex;justify-content:space-between;font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-weight:500}
+.ap-bar-track{height:5px;background:var(--light);border-radius:3px;overflow:hidden}
+.ap-bar-fill{height:100%;border-radius:3px;transition:width 1s cubic-bezier(.16,.84,.44,1);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ap-radar-wrap{display:block;margin:0 auto 14px;width:240px;height:240px}
+.ap-dims{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.ap-dim{background:var(--bg);border:1px solid var(--border);border-radius:var(--r4);padding:9px 10px 9px 13px;position:relative;overflow:hidden}
+.ap-dim-accent{position:absolute;left:0;top:0;bottom:0;width:3px}
+.ap-dim-label{font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.ap-dim-val{font-size:16px;font-weight:700;line-height:1;margin-bottom:1px}
+.ap-dim-sub{font-size:9px;color:var(--muted);line-height:1.35;font-weight:300}
+.ap-detail-grid{display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:12px}
+.ap-detail-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--r4);padding:10px 12px;border-left-width:3px;display:grid;grid-template-columns:80px 1fr;gap:10px;align-items:start}
+.adb-left{display:flex;flex-direction:column;gap:2px}
+.adb-label{font-size:7px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:3px;line-height:1.3}
+.adb-score{font-size:22px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.adb-weight{font-size:8px;font-weight:400;color:var(--muted);margin-top:1px}
+.adb-nivel{font-size:8px;font-weight:600;margin-top:3px}
+.adb-items{display:flex;flex-direction:column;gap:4px}
+.adb-item{font-size:9px;color:var(--muted);line-height:1.5;display:flex;gap:5px;font-weight:300}
+.adb-item::before{content:'·';flex-shrink:0;color:var(--vm);font-weight:700}
+.ap-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+.ptag{font-size:8px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;padding:3px 7px;border-radius:var(--r4)}
+.ptag-c{background:var(--vm10);color:var(--vm)}.ptag-a{background:rgba(192,80,16,.1);color:#C05010}
+.ptag-m{background:var(--do10);color:#7a5e20}.ptag-b{background:var(--vd10);color:var(--vd)}.ptag-r{background:var(--az10);color:var(--az)}
+.ap-med-title{font-size:8px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.ap-medida{display:flex;gap:7px;font-size:10px;line-height:1.6;color:var(--muted);padding:6px 0;border-bottom:1px solid var(--light);font-weight:300}
+.ap-medida:last-child{border:none}
+.ap-medida::before{content:'→';color:var(--vm);font-weight:700;flex-shrink:0;margin-top:1px}
+.ap-fonte{font-size:9px;color:var(--muted);margin-top:10px;padding-top:9px;border-top:1px solid var(--light);line-height:1.55;font-weight:300;font-style:italic}
+/* print */
+@media print{
+  @page{size:A4 portrait;margin:1.2cm 1.8cm 1.2cm}
+  body *{visibility:hidden}
+  #print-zone,#print-zone *{visibility:visible}
+  #print-zone{position:fixed;inset:0;background:#fff!important;color:#1a1a18!important;padding:1.2cm 1.8cm;font-family:'Lexend',Arial,sans-serif!important;font-size:9.5pt!important;font-weight:300!important}
+  .print-hdr{background:linear-gradient(120deg,#2B5683 0%,#1a3f6f 28%,#0E7433 62%,#0a5228 100%)!important;border-bottom:2pt solid #D02117!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;padding:7pt 12pt;margin-bottom:10pt;border-radius:3pt;display:flex;align-items:center;justify-content:space-between}
+  .print-hdr-l{color:#fff;font-size:7.5pt;font-weight:300;line-height:1.5}
+  .print-hdr-l strong{font-weight:700;font-size:9.5pt;display:block}
+  .print-hdr-r{color:rgba(255,255,255,.7);font-size:7pt;text-align:right}
+  .print-body .ap-bar-fill{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .print-body .ap-dim-accent{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .print-body .ap-detail-box{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;break-inside:avoid}
+  .print-body .ap-bar-track{background:#eeecea!important;-webkit-print-color-adjust:exact!important}
+  .print-body .ap-tags span{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .print-radar-img{display:block!important;width:170pt!important;height:170pt!important;margin:0 auto 8pt!important}
+  .ap-radar-wrap{display:none!important}
+  .print-ftr{margin-top:10pt;padding-top:7pt;border-top:1pt solid #dddbd4;font-size:6.5pt;color:#5a5a55;display:flex;justify-content:space-between}
+}
+@media(max-width:680px){
+  .app{grid-template-columns:1fr;grid-template-rows:52px 44px 1fr auto}
+  .sidebar{flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:8px;gap:8px;border-right:none;border-bottom:1px solid var(--border)}
+  .s-label,.mitem-name{display:none}
+  .filter-group,.min-list{flex-direction:row}
+  .kpi-strip{grid-template-columns:repeat(2,1fr)}
+  .formula-grid,.ap-dims{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="tb-text">
+    <strong>Barómetro de Risco Geracional · Administração Pública Central Portuguesa</strong>
+    <em>SECRETARIA-GERAL DO GOVERNO &nbsp;|&nbsp; SUPORTE À DECISÃO &nbsp;·&nbsp; Unidade de Pesquisa e Estatísticas &nbsp;·&nbsp; 2026</em>
+  </div>
+  <div class="tb-right">
+    <button class="hdr-btn" onclick="openMeta()">ℹ Como se calcula?</button>
+    <button class="hdr-btn hdr-btn-icon" id="theme-btn" onclick="toggleTheme()" title="Modo claro/escuro">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="3" stroke="currentColor" stroke-width="1.4"/><path d="M7 1v1.5M7 11.5V13M13 7h-1.5M2.5 7H1M11.24 2.76l-1.06 1.06M3.82 10.18l-1.06 1.06M11.24 11.24l-1.06-1.06M3.82 3.82L2.76 2.76" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+<aside class="sidebar">
+  <div>
+    <div class="s-label">Filtrar por nível</div>
+    <div class="filter-group">
+      <div class="fchip active" data-f="all" onclick="setFilter('all',this)"><div class="fchip-dot" style="background:var(--text)"></div>Todas<span class="fchip-n">14</span></div>
+      <div class="fchip" data-f="crit" onclick="setFilter('crit',this)"><div class="fchip-dot" style="background:var(--vm)"></div>Crítico ≥ 75<span class="fchip-n">3</span></div>
+      <div class="fchip" data-f="alto" onclick="setFilter('alto',this)"><div class="fchip-dot" style="background:#C05010"></div>Alto 60 – 74<span class="fchip-n">7</span></div>
+      <div class="fchip" data-f="med" onclick="setFilter('med',this)"><div class="fchip-dot" style="background:var(--do)"></div>Moderado 45 – 59<span class="fchip-n">2</span></div>
+      <div class="fchip" data-f="bom" onclick="setFilter('bom',this)"><div class="fchip-dot" style="background:var(--vd)"></div>Controlado &lt; 45<span class="fchip-n">2</span></div>
+    </div>
+  </div>
+  <div>
+    <div class="s-label">Áreas governativas · APC</div>
+    <div class="min-list" id="min-list"></div>
+  </div>
+</aside>
+<main class="main">
+  <div class="radar-area">
+    <div class="radar-wrap"><canvas id="radarChart"></canvas></div>
+    <div class="radar-hint">passe o cursor · clique para detalhe</div>
+  </div>
+  <div class="kpi-strip">
+    <div class="kpi"><div class="kpi-val" style="color:var(--vm)">47,97</div><div class="kpi-lbl">Idade média · APC · Jun 2025</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:#C05010">32,7%</div><div class="kpi-lbl">Trabalhadores 55+ anos · APC</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--vd)">15,3%</div><div class="kpi-lbl">Trabalhadores &lt;35 anos · APC</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--vm)">30,8</div><div class="kpi-lbl">Índice renovação APC (2011: 52,2)</div></div>
+    <div class="kpi"><div class="kpi-val" style="color:var(--az)">74,6%</div><div class="kpi-lbl">APC = 567 663 / AP total 760 928</div></div>
+  </div>
+</main>
+</div>
+
+<!-- META POPUP — única instância -->
+<div class="overlay" id="meta-overlay" onclick="closeOvl('meta-overlay',event)">
+  <div class="popup">
+    <div class="pop-hdr">
+      <div><div class="pop-hdr-title">Como se calcula o Barómetro de Risco Geracional</div><div class="pop-hdr-sub">Score 0–100 · 4 dimensões ponderadas · APC · BOEP 29 + SIEP T4 + fluxos SIEP 2023–2025</div></div>
+      <button class="pop-close" onclick="closeId('meta-overlay')">✕</button>
+    </div>
+    <div class="pop-body">
+      <p style="font-size:10px;color:var(--muted);line-height:1.7;font-weight:300;margin-bottom:4px">Score de 0 a 100: <strong style="color:var(--text);font-weight:600">quanto mais alto, maior a urgência de intervenção.</strong> Universo: <strong style="color:var(--text)">Administração Pública Central (APC) · 567 663 trabalhadores · 74,6% da AP total · 30 Jun 2025.</strong></p>
+      <div class="formula-grid">
+        <div class="fg-cell" style="border-left-color:var(--vm)"><div class="fg-weight" style="color:var(--vm)">35%</div><div class="fg-name">Envelhecimento estrutural</div><div class="fg-desc">% trabalhadores 55+ anos ÷ máximo APC (51,1% · MAG) × 100. Fonte: BOEP n.º 29 (jun. 2025).</div></div>
+        <div class="fg-cell" style="border-left-color:#C05010"><div class="fg-weight" style="color:#C05010">30%</div><div class="fg-name">Pressão de saídas previstas</div><div class="fg-desc">Taxa de saídas definitivas 2025 ÷ máximo observado na APC (16,38% · MECI) × 100. Exclui mobilidade (não é saída efectiva da AP). Saldo líquido (recrutamento − saídas) apresentado como contexto no painel. Fonte: SIEP Q1.8.14.</div></div>
+        <div class="fg-cell" style="border-left-color:var(--do)"><div class="fg-weight" style="color:#7a5e20">20%</div><div class="fg-name">Défice de renovação</div><div class="fg-desc">% trabalhadores &lt;35 anos invertida: (1 − %&lt;35) ÷ (1 − 3,2%) × 100. Mínimo APC: 3,2% (MTSSS). Fonte: BOEP n.º 29.</div></div>
+        <div class="fg-cell" style="border-left-color:var(--az)"><div class="fg-weight" style="color:var(--az)">15%</div><div class="fg-name">Exposição à automação / IA</div><div class="fg-desc">Avaliação qualitativa com escala de 5 posições derivadas matematicamente: Baixo=25 · Médio=50 · Médio-Alto=63 · Alto=75 · Muito Alto=100. Espaçamento uniforme de 25 pontos; Médio-Alto=(50+75)÷2. OCDE jan./set. 2025–2026 · AI Act art.º 4.º.</div></div>
+      </div>
+      <div style="font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:7px">Escala de leitura</div>
+      <div style="margin-bottom:10px">
+        <div class="scale-row"><div class="scale-bar" style="background:var(--vm)"></div><div class="scale-rng" style="color:var(--vm)">≥ 75</div><div class="scale-lbl">Crítico</div></div>
+        <div class="scale-row"><div class="scale-bar" style="background:#C05010"></div><div class="scale-rng" style="color:#C05010">60 – 74</div><div class="scale-lbl">Alto</div></div>
+        <div class="scale-row"><div class="scale-bar" style="background:var(--do)"></div><div class="scale-rng" style="color:#7a5e20">45 – 59</div><div class="scale-lbl">Moderado</div></div>
+        <div class="scale-row"><div class="scale-bar" style="background:var(--vd)"></div><div class="scale-rng" style="color:var(--vd)">&lt; 45</div><div class="scale-lbl">Controlado</div></div>
+      </div>
+      <div class="meta-note">
+        Fontes: DGAEP · BOEP n.º 29 (dez. 2025, ref. jun. 2025) · SIEP 2025 T4 · SIEP Q1.8.14 (fluxos 2025) · OCDE 2025–2026.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AREA POPUP -->
+<div class="overlay" id="area-overlay" onclick="closeOvl('area-overlay',event)">
+  <div class="popup" id="area-popup">
+    <div class="pop-hdr" id="ap-hdr">
+      <div style="flex:1;min-width:0"><div class="pop-hdr-title" id="ap-hdr-title"></div><div class="pop-hdr-sub" id="ap-hdr-sub"></div></div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <button class="hdr-btn hdr-btn-icon" onclick="printArea()" title="Imprimir / PDF">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="3" y="1" width="8" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><path d="M3 9H1V6a1 1 0 011-1h10a1 1 0 011 1v3h-2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="3" y="8" width="8" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><circle cx="11" cy="7.5" r=".75" fill="currentColor"/></svg>
+        </button>
+        <button class="pop-close" onclick="closeId('area-overlay')">✕</button>
+      </div>
+    </div>
+    <div class="pop-body" id="ap-body"></div>
+  </div>
+</div>
+
+<div id="print-zone" style="display:none"></div>
+
+<script>
+// ══ DATA — BOEP29 + SIEP T4 + SIEP fluxos Q1.8.12-14 ══
+const AREAS=[
+  {id:'meci',icon:'📚',name:'Educação, Ciência e Inovação',acronym:'MECI',level:'crit',score:85,w:240943,
+   d:[0.8,6.2,16.0,35.7,34.7,6.6],lt35:7.0,gt55:41.3,idm:51.24,ir:9.25,
+   dims:{envelhec:81,pressao:100,renovacao:96,automacao:50},
+   d2data:{tx_saida:17.34,tx_reforma:2.29,avg_sd:41772,avg_ref:5528,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:100,nivel:'Muito Alta',items:['Taxa de saídas definitivas 2025: 16,38% — a mais alta da APC · SIEP Q1.8.14 (Dim2=100, referência máxima)','Em termos absolutos: ≈41 772 saídas/ano em média — pela maior área da APC (240 943 trabalhadores)','⚠ Score agrega docentes (maioria) e pessoal ministerial — dois problemas distintos']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:40,nivel:'Médio',items:['Ferramentas de IA generativa alteram processos de avaliação, pesquisa e produção de conteúdo','Tutores inteligentes em expansão — papel do docente transforma-se','Atividade pedagógica e relação educativa têm baixa substituibilidade direta']},
+   tags:[{t:'Maior área absoluta APC',c:'a'},{t:'41 772 saídas/ano em média',c:'c'},{t:'⚠ Inclui docentes — ver nota',c:'m'}],
+   medidas:['Revisão da progressão na carreira docente para reforço de atratividade','Certificação de competências digitais e IA para docentes'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14 · Nota: MECI inclui docentes do ensino público'},
+
+  {id:'mcjd',icon:'🎭',name:'Cultura, Juventude e Desporto',acronym:'MCJD',level:'crit',score:81,w:3228,
+   d:[0.1,4.6,12.0,33.6,41.4,8.4],lt35:4.7,gt55:49.8,idm:53.21,ir:2.54,
+   dims:{envelhec:97,pressao:78,renovacao:98,automacao:25},
+   d2data:{tx_saida:13.85,tx_reforma:2.56,avg_sd:447,avg_ref:83,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:68,nivel:'Alta',items:['Taxa de saídas definitivas: 13,85%/ano — 2.ª mais alta da APC · SIEP Q1.8.14','IR=2,54 — o mais baixo de toda a APC: por cada 100 saídas entram apenas 2,54 trabalhadores','49,8% com 55+ anos — segunda área mais envelhecida']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:25,nivel:'Baixo',items:['Funções criativas e curatoriais com baixa substituibilidade por automação','Gestão documental com potencial de indexação assistida por IA','Produção cultural e relação com o público exigem presença humana central']},
+   tags:[{t:'IR=2,54 — mínimo absoluto APC',c:'c'},{t:'Contradição missão/estrutura',c:'c'},{t:'Baixa exposição IA',c:'b'}],
+   medidas:['AP Careers com jornadas em escolas de artes, património e ciências culturais','Regime especial de recrutamento para conservação do património','Mentoria reversa digital — jovens como agentes de mudança'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14'},
+
+  {id:'mf',icon:'💰',name:'Finanças',acronym:'MF',level:'crit',score:81,w:11723,
+   d:[0.2,3.5,8.0,40.2,39.5,8.7],lt35:3.7,gt55:48.2,idm:53.87,ir:4.70,
+   dims:{envelhec:94,pressao:44,renovacao:99,automacao:100},
+   d2data:{tx_saida:0.28,tx_reforma:0.24,avg_sd:32,avg_ref:28,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:44,nivel:'Alta',items:['Taxa de saídas definitivas 2025: 7,17% (841 saídas) · SIEP Q1.8.14 — Dim2=44 — porque AT e Registos saem maioritariamente por mobilidade (não "saída definitiva")','IR=4,70 — o mais baixo de toda a APC: estrutura etária confirma risco extremo (48,2% com 55+)','O risco de MF é captado pelas Dim1 (envelhecimento) e Dim3 (défice jovens) — não pela Dim2']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:80,nivel:'Alto',items:['OCDE jan. 2026: procedimentos administrativos baseados em regras = máxima exposição','Liquidação, cobrança e cruzamento de declarações fiscais com alto potencial de RPA','Deteção de fraude fiscal com IA já implementada em ES, FR, IT','Duplo risco: colapso geracional estrutural E alta automação das funções restantes']},
+   tags:[{t:'IR=4,70 — mínimo da APC',c:'c'},{t:'48,2% com 55+ anos',c:'c'},{t:'⚠ Dim2 subestimada no SIEP',c:'m'}],
+   medidas:['Mapeamento DGAEP/ARTE,I.P. das funções por grau de automação — pré-condição do recrutamento','AP Careers em faculdades de Economia, Gestão e Direito para AT e Registos','Regime de reforma parcial progressiva para gestão faseada das saídas'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14 · Nota: saídas de MF no SIEP quase nulas por serem registadas como mobilidade · OCDE jan. 2026'},
+
+  {id:'pcm',icon:'🏛️',name:'Presidência do Conselho de Ministros',acronym:'PCM',level:'alto',score:72,w:16739,
+   d:[0.5,5.9,14.5,35.7,36.8,6.7],lt35:6.4,gt55:43.5,idm:51.76,ir:7.75,
+   dims:{envelhec:85,pressao:27,renovacao:97,automacao:100},
+   d2data:{tx_saida:3.79,tx_reforma:2.41,avg_sd:634,avg_ref:404,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:37,nivel:'Moderada',items:['Taxa de saídas definitivas: 3,79%/ano (média 2023–2025) · SIEP Q1.8.14','43,5% com 55+ anos — acima da média APC (32,7%) — pressão estrutural crescente','Fusão das secretarias-gerais na SGGov (DL 43-B/2024) gerou incerteza de retenção']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:80,nivel:'Muito Alto',items:['Funções de coordenação, análise e suporte à decisão = máxima exposição a IA generativa (OCDE jan. 2026)','Produção de relatórios, sínteses e briefings — assistência por IA já disponível','Portugal referenciado pela OCDE (SMOS/DGT): capacidade técnica fragmentada por silos','ARTE, I.P. (DL 96/2025) e DGAEP: oportunidade de articulação entre transformação digital e recrutamento']},
+   tags:[{t:'43,5% com 55+ anos',c:'a'},{t:'Muito alta exposição à IA',c:'c'},{t:'Oportunidade de liderança',c:'r'}],
+   medidas:['Mapeamento DGAEP/ARTE,I.P. de funções por grau de automação — PCM como piloto nacional','Capacitação acelerada em IA e literacia de dados para todas as carreiras técnicas'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14 · OCDE Governing with AI, set. 2025 · DL 43-B/2024 · DL 96/2025'},
+
+  {id:'mag',icon:'🌾',name:'Agricultura e Mar',acronym:'MAG',level:'alto',score:70,w:3925,
+   d:[0.3,6.2,10.9,31.5,42.4,8.7],lt35:6.5,gt55:51.1,idm:53.16,ir:7.24,
+   dims:{envelhec:100,pressao:28,renovacao:97,automacao:50},
+   d2data:{tx_saida:6.31,tx_reforma:4.54,avg_sd:248,avg_ref:178,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:28,nivel:'Moderada',items:['Taxa de saídas definitivas 2025: 4,59% (180 saídas) · SIEP Q1.8.14 · Saldo positivo: +203 (recrutou mais do que perdeu)','Taxa de reforma/aposentação: 4,54%/ano — mais alta de toda a APC','Saldo de recrutamento negativo em 2023 e 2024; ligeira recuperação em 2025']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:50,nivel:'Médio',items:['Fiscalização e inspeção com deteção por imagem (drones, satélite)','Análise de solos e subsídios com potencial de assistência por IA generativa','Atividades de campo com baixa substituibilidade — componente humana central']},
+   tags:[{t:'Dim1=100 · máx. envelhecimento',c:'c'},{t:'51,1% com 55+ anos',c:'c'},{t:'Maior taxa de reforma APC',c:'c'}],
+   medidas:['Vagas extraordinárias de substituição antecipada (2–3 anos antes das saídas)','Plano formal de transferência de conhecimento técnico especializado','Mentoria intergeracional — modelo belga'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14 (fluxos 2025)'},
+
+  {id:'mect',icon:'📈',name:'Economia e Coesão Territorial',acronym:'MECT',level:'alto',score:66,w:6491,
+   d:[0.3,5.9,15.4,38.3,34.1,6.1],lt35:6.2,gt55:40.2,idm:51.29,ir:7.97,
+   dims:{envelhec:79,pressao:27,renovacao:97,automacao:75},
+   d2data:{tx_saida:4.08,tx_reforma:3.00,avg_sd:265,avg_ref:195,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:45,nivel:'Moderada',items:['Taxa de saídas definitivas: 4,08%/ano (média 2023–2025) · SIEP Q1.8.14','40,2% com 55+ anos — acima da média APC; IR=7,97','Perda de talento para setor privado e startups é o principal vetor de risco']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:75,nivel:'Alto',items:['Análise económica, prospetiva e regulação de mercados com alta exposição a IA generativa','AICEP: promoção de investimento com ferramentas de matching e análise assistida por IA','Missão de inovação exige competências internas em IA que a APC ainda não tem em profundidade']},
+   tags:[{t:'Alta exposição IA',c:'c'},{t:'Perda de talento para privado',c:'a'},{t:'Oportunidade de liderança digital',c:'r'}],
+   medidas:['Junior Professionals orientado para perfis de inovação, tech policy e análise de dados','Parceria com ecossistema de startups para transferência de talento qualificado'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14'},
+
+  {id:'os',icon:'⚖️',name:'Órgãos de Soberania',acronym:'OS',level:'alto',score:66,w:13175,
+   d:[1.1,8.4,13.1,30.4,39.1,7.9],lt35:9.5,gt55:47.0,idm:51.80,ir:9.48,
+   dims:{envelhec:92,pressao:25,renovacao:93,automacao:50},
+   d2data:{tx_saida:3.25,tx_reforma:2.96,avg_sd:428,avg_ref:390,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:42,nivel:'Moderada',items:['Taxa de saídas definitivas: 3,25%/ano (média 2023–2025) · SIEP Q1.8.14','47,0% com 55+ anos — 4.ª área mais envelhecida da APC','Inclui tribunais e magistrados (nota DGAEP) — dados parcialmente limitados']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:42,nivel:'Médio',items:['Pesquisa jurisprudencial e elaboração de despachos com apoio crescente de IA','Decisão jurisdicional mantém componente humana essencial — AI Act: sistema de alto risco','Funções administrativas de apoio com potencial de automação de back-office']},
+   tags:[{t:'47% com 55+ anos',c:'c'},{t:'Inclui tribunais e magistratura',c:'m'},{t:'Dados parcialmente limitados',c:'r'}],
+   medidas:['Planeamento geracional integrado com especificidade das carreiras judiciais e parlamentares','Capacitação em literacia digital e IA para funções administrativas de apoio'],
+   nota:'DGAEP · BOEP n.º 29 (nota: inclui tribunais e magistrados) · SIEP 2025 T4 · SIEP Q1.8.14'},
+
+  {id:'mtsss',icon:'🤝',name:'Trabalho, Sol. e Seg. Social',acronym:'MTSSS',level:'alto',score:64,w:5660,
+   d:[0.3,2.9,11.6,42.5,38.4,4.4],lt35:3.2,gt55:42.8,idm:52.53,ir:3.09,
+   dims:{envelhec:84,pressao:17,renovacao:100,automacao:63},
+   d2data:{tx_saida:2.67,tx_reforma:2.06,avg_sd:151,avg_ref:117,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:30,nivel:'Baixa-Moderada',items:['Taxa de saídas definitivas: 2,67%/ano (média 2023–2025) · SIEP Q1.8.14','IR=3,09 — 2.º mais baixo da APC: colapso de renovação confirmado (BOEP 29)','Apenas 3,2% com menos de 35 anos — mínimo absoluto de toda a APC']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:58,nivel:'Médio-Alto',items:['Gestão de prestações e validação de processos com potencial crescente de automação','A Kela — Instituto Nacional de Segurança Social da Finlândia — automatizou classificação de documentos, libertando o equivalente a 38 postos de trabalho a tempo inteiro por ano para funções de maior valor acrescentado (OCDE 2026)','Funções de atendimento e acompanhamento social com baixa substituibilidade']},
+   tags:[{t:'3,2% jovens — mínimo APC',c:'c'},{t:'IR=3,09 — 2.º mais baixo',c:'c'},{t:'Dim3=100 — défice total',c:'c'}],
+   medidas:['Literacia digital obrigatória para trabalhadores 50+ (INA + Portugal Digital 2030)','Mentoria intergeracional com foco em conhecimento técnico-jurídico de prestações sociais'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14 · OCDE Building an AI-ready public workforce, jan. 2026'},
+
+  {id:'mj',icon:'🏛️',name:'Justiça',acronym:'MJ',level:'alto',score:62,w:15505,
+   d:[0.1,8.0,13.4,37.3,36.1,5.2],lt35:8.1,gt55:41.3,idm:51.27,ir:6.71,
+   dims:{envelhec:81,pressao:23,renovacao:95,automacao:50},
+   d2data:{tx_saida:3.53,tx_reforma:3.05,avg_sd:547,avg_ref:473,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:44,nivel:'Moderada',items:['Taxa de saídas definitivas: 3,53%/ano · Taxa de reforma: 3,05%/ano (média 2023–2025)','41,3% com 55+ anos — acima da média APC; IR=6,71','Digitalização judicial (CITIUS) cria risco de desfasamento competências/tecnologia']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:50,nivel:'Médio',items:['Pesquisa jurisprudencial e despachos com apoio crescente de IA generativa','Decisão jurisdicional mantém componente humana — AI Act classifica como alto risco','Digitalização judicial (CITIUS) em expansão acelerada']},
+   tags:[{t:'41,3% com 55+ anos',c:'a'},{t:'Digitalização judicial em curso',c:'m'}],
+   medidas:['Plano de competências digitais alinhado com digitalização judicial (CITIUS)','Planeamento geracional obrigatório integrado no SIADAP para organismos MJ'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14'},
+
+  {id:'mae',icon:'🌿',name:'Ambiente e Energia',acronym:'MAE',level:'alto',score:60,w:3574,
+   d:[1.9,10.8,16.3,30.4,33.2,7.4],lt35:12.7,gt55:40.6,idm:50.00,ir:19.98,
+   dims:{envelhec:79,pressao:22,renovacao:90,automacao:50},
+   d2data:{tx_saida:3.41,tx_reforma:2.67,avg_sd:122,avg_ref:95,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:39,nivel:'Moderada',items:['Taxa de saídas definitivas: 3,41%/ano (média 2023–2025) · SIEP Q1.8.14','40,6% com 55+ anos — acima da média APC; missão Green Deal vs. competências existentes','Concorrência intensa com setor privado (consultoria ambiental, utilities)']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:50,nivel:'Médio',items:['Monitorização ambiental com crescente uso de machine learning e dados de satélite','SMOS/DGT referenciado pela OCDE (set. 2025) como caso de uso de IA em Portugal','Licenciamento com potencial de apoio por IA — decisão final mantém componente humana']},
+   tags:[{t:'Missão vs. competências desalinhadas',c:'a'},{t:'Janela de recrutamento verde',c:'m'}],
+   medidas:['Recrutamento direcionado em STEM e ciências do ambiente','Junior Professionals com rotação APA, LNEG e DGEG'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14 · OCDE Governing with AI, set. 2025'},
+
+  {id:'mne',icon:'🌐',name:'Negócios Estrangeiros',acronym:'MNE',level:'med',score:59,w:3211,
+   d:[1.1,13.3,18.6,29.4,28.1,9.5],lt35:14.4,gt55:37.6,idm:49.24,ir:24.94,
+   dims:{envelhec:74,pressao:39,renovacao:88,automacao:25},
+   d2data:{tx_saida:6.35,tx_reforma:2.10,avg_sd:204,avg_ref:67,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:41,nivel:'Moderada',items:['Taxa de saídas definitivas: 6,35%/ano (média 2023–2025) · SIEP Q1.8.14','37,6% com 55+ anos — acima da média APC; IR=24,94 próximo da referência APC','Conhecimento diplomático (idiomas, redes, expertise regional) de difícil substituição']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:42,nivel:'Médio',items:['Síntese de informação política e económica com potencial de apoio por IA generativa','Tradução técnica com substituibilidade por IA — mas diplomacia exige muito mais','Negociação e representação: componente relacional e de confiança insubstituível']},
+   tags:[{t:'Risco moderado',c:'m'},{t:'Conhecimento diplomático único',c:'m'},{t:'Perfil etário controlado',c:'r'}],
+   medidas:['Banco de Senior Advisors diplomáticos (modelo Singapura) para transição de conhecimento'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14'},
+
+  {id:'ms',icon:'🏥',name:'Saúde',acronym:'MS',level:'med',score:59,w:157768,
+   d:[0.8,9.2,24.3,35.8,25.4,4.5],lt35:10.0,gt55:29.9,idm:48.51,ir:16.81,
+   dims:{envelhec:59,pressao:41,renovacao:93,automacao:50},
+   d2data:{tx_saida:6.74,tx_reforma:1.54,avg_sd:10628,avg_ref:2422,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:36,nivel:'Moderada',items:['Taxa de saídas definitivas: 6,74%/ano em termos relativos · ≈10 628 saídas/ano em termos absolutos · SIEP Q1.8.14','2.ª maior área (157 768) — impacto absoluto é muito significativo mesmo com taxa moderada','Concorrência intensa com setor privado para médicos, enfermeiros e técnicos']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:45,nivel:'Médio',items:['Diagnóstico assistido por IA (imagiologia, anatomia patológica) já em implementação no SNS','Gestão administrativa e faturação clínica com alto potencial de automação de back-office','Cuidados diretos ao doente com baixa substituibilidade — componente relacional estrutural']},
+   tags:[{t:'2.ª maior área absoluta APC',c:'a'},{t:'29,9% >55 anos — abaixo média',c:'m'},{t:'≈10 628 saídas/ano',c:'a'}],
+   medidas:['Incentivos de retenção e diferimento voluntário de reforma para especialidades críticas','Regime de tempo parcial sénior 80-90-100 com manutenção de competências clínicas'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 (157 768 inclui SNS) · SIEP Q1.8.14'},
+
+  {id:'mai',icon:'🛡️',name:'Administração Interna',acronym:'MAI',level:'bom',score:40,w:47026,
+   d:[6.8,20.1,26.2,35.0,11.5,0.5],lt35:26.9,gt55:12.0,idm:42.03,ir:147.01,
+   dims:{envelhec:23,pressao:32,renovacao:76,automacao:50},
+   d2data:{tx_saida:4.78,tx_reforma:2.70,avg_sd:2249,avg_ref:1271,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:44,nivel:'Moderada',items:['Taxa de saídas definitivas: 4,78%/ano (média 2023–2025) — compensada pelo recrutamento contínuo','12,0% com 55+ anos — a menor percentagem de toda a APC','IR=147,01 — renovação muito robusta: 147 entradas por cada 100 saídas']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:35,nivel:'Médio',items:['Videovigilância e análise preditiva de criminalidade com IA já em uso na PSP e GNR','Gestão de fronteiras e controlo documental com automação crescente (AIMA)','Proteção civil: modelação de riscos com apoio de IA preditiva']},
+   tags:[{t:'Área mais jovem da APC',c:'b'},{t:'Modelo de recrutamento contínuo',c:'b'},{t:'Masculinização 88,5%',c:'r'}],
+   medidas:['Modelo de recrutamento contínuo como referência exportável para outros subsetores','Atenção à diversidade de género — masculinização de 88,5% é o maior outlier da AP'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14'},
+
+  {id:'mdn',icon:'🎖️',name:'Defesa Nacional',acronym:'MDN',level:'bom',score:36,w:29792,
+   d:[22.8,22.4,20.8,21.2,11.4,1.5],lt35:45.2,gt55:12.9,idm:37.84,ir:300.96,
+   dims:{envelhec:25,pressao:39,renovacao:57,automacao:25},
+   d2data:{tx_saida:7.21,tx_reforma:1.89,avg_sd:2148,avg_ref:563,anos:'2023–2025'},
+   pressaoDetalhe:{label:'Pressão de saídas',score:42,nivel:'Moderada',items:['Taxa de saídas definitivas: 7,21%/ano — mas estruturalmente compensada pelo recrutamento contínuo','IR=300,96 — por cada 100 saídas entram 301 trabalhadores; renovação excedentária','Regime estruturado de progressão e saída garante pirâmide etária sustentável']},
+   iaDetalhe:{label:'Exposição à automação / IA',score:25,nivel:'Baixo',items:['Sistemas autónomos e drones com IA em expansão — integração na estrutura AP ainda limitada','Inteligência e análise estratégica com crescente apoio por IA (satélite, OSINT)','Componente operacional com baixa substituibilidade por automação no horizonte relevante']},
+   tags:[{t:'IR=300,96 — renovação excedentária',c:'b'},{t:'Área mais jovem da APC',c:'b'},{t:'Masculinização 76,4%',c:'r'}],
+   medidas:['Exportar o modelo de recrutamento contínuo e estruturado para outras áreas da AP','Gerir transição de militares para funções civis como via de rejuvenescimento'],
+   nota:'DGAEP · BOEP n.º 29 · SIEP 2025 T4 · SIEP Q1.8.14'}
+];
+
+const LC={crit:'#D02117',alto:'#C05010',med:'#7a5e20',bom:'#0E7433'};
+const LS={crit:'Crítico',alto:'Alto',med:'Moderado',bom:'Controlado'};
+const TC={c:'ptag-c',a:'ptag-a',m:'ptag-m',b:'ptag-b',r:'ptag-r'};
+let filter='all',active=null,rChart=null,pChart=null,isDark=false;
+
+function toggleTheme(){
+  isDark=!isDark;
+  document.documentElement.setAttribute('data-theme',isDark?'dark':'light');
+  if(rChart){rChart.destroy();rChart=null;}
+  updateRadar();
+  if(document.getElementById('area-overlay').classList.contains('open')&&active) buildArea(active);
+}
+function tC(){
+  return isDark
+    ?{grid:'#2e2d2a',ticks:'#3a3936',lbl:'#9a9790',tbg:'#1c1c1a',tbrd:'#2e2d2a',ttl:'#f0ede8',bdy:'#9a9790'}
+    :{grid:'#dddbd4',ticks:'#c8c5be',lbl:'#5a5a55',tbg:'#fff',tbrd:'#dddbd4',ttl:'#1a1a18',bdy:'#5a5a55'};
+}
+function buildList(){
+  const el=document.getElementById('min-list'); el.innerHTML='';
+  AREAS.forEach(a=>{
+    const d=document.createElement('div');
+    d.className='mitem'; d.dataset.id=a.id; d.dataset.level=a.level;
+    d.innerHTML=`<div class="mitem-icon">${a.icon}</div><div class="mitem-name">${a.name}</div><div class="mitem-score" style="color:${LC[a.level]}">${a.score}</div>`;
+    d.onclick=()=>openArea(a.id);
+    el.appendChild(d);
+  });
+}
+function setFilter(lv,chip){
+  filter=lv;
+  document.querySelectorAll('.fchip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  document.querySelectorAll('.mitem').forEach(el=>el.classList.toggle('hidden',lv!=='all'&&el.dataset.level!==lv));
+  if(rChart){rChart.destroy();rChart=null;} updateRadar();
+}
+function fAreas(){return filter==='all'?AREAS:AREAS.filter(a=>a.level===filter);}
+function wrap(icon,name){
+  const words=name.split(' ');const lines=[];let cur='';
+  for(const w of words){if((cur+' '+w).trim().length>17&&cur){lines.push(cur.trim());cur=w;}else cur=(cur+' '+w).trim();}
+  if(cur)lines.push(cur);lines[0]=icon+' '+lines[0];return lines;
+}
+function dcol(v){return v>=80?'#D02117':v>=65?'#C05010':v>=45?'#7a5e20':'#0E7433';}
+
+function updateRadar(){
+  const fa=fAreas();
+  const labels=fa.map(a=>wrap(a.icon,a.name));
+  const scores=fa.map(a=>a.score);
+  const colors=fa.map(a=>LC[a.level]);
+  const ptBGs=scores.map((_,i)=>active&&fa[i].id===active?colors[i]:colors[i]+'77');
+  const t=tC();
+  if(rChart){rChart.data.labels=labels;rChart.data.datasets[0].data=scores;rChart.data.datasets[0].pointBackgroundColor=ptBGs;rChart.data.datasets[0].pointBorderColor=colors;rChart.update('active');return;}
+  const ctx=document.getElementById('radarChart').getContext('2d');
+  rChart=new Chart(ctx,{type:'radar',data:{labels,datasets:[{
+    data:scores,backgroundColor:'rgba(208,33,23,.06)',borderColor:'rgba(208,33,23,.35)',borderWidth:1.5,
+    pointBackgroundColor:ptBGs,pointBorderColor:colors,pointBorderWidth:2,pointRadius:6,pointHoverRadius:9,
+  }]},options:{responsive:true,maintainAspectRatio:true,
+    onClick:(_,els)=>{if(els.length){const a=fAreas()[els[0].index];openArea(a.id);}},
+    plugins:{legend:{display:false},tooltip:{
+      callbacks:{
+        title:ctx=>{return fAreas()[ctx[0].dataIndex].name;},
+        label:ctx=>{
+          const a=fAreas()[ctx.dataIndex];
+          return[` Score: ${a.score}/100 · ${LS[a.level]}`,
+            ` ${a.w.toLocaleString('pt-PT')} trabalhadores · >55: ${a.gt55}% · <35: ${a.lt35}%`,
+            ` Idade média: ${a.idm}a · IR: ${a.ir}`,``,
+            ` Envelh. 35%: ${a.dims.envelhec}`,
+            ` Pressão saídas 30%: ${a.dims.pressao} (${a.d2data.tx_saida}%/ano · ${a.pressaoDetalhe.nivel})`,
+            ` Défice renov. 20%: ${a.dims.renovacao}`,
+            ` Exposição IA 15%: ${a.dims.automacao} (${a.iaDetalhe.nivel})`,
+            ``,` ▶ Clique para detalhe completo`];
+        }
+      },
+      backgroundColor:t.tbg,borderColor:t.tbrd,borderWidth:1,titleColor:t.ttl,bodyColor:t.bdy,
+      titleFont:{family:'Lexend',size:12,weight:'600'},bodyFont:{family:'Lexend',size:9},padding:12,displayColors:false,
+    }},
+    scales:{r:{min:0,max:100,
+      ticks:{stepSize:25,color:t.ticks,backdropColor:'transparent',font:{family:'Lexend',size:8}},
+      grid:{color:t.grid,lineWidth:1},angleLines:{color:t.grid},
+      pointLabels:{color:ctx=>{const a=fAreas()[ctx.index];return active===a?.id?LC[a.level]:t.lbl;},font:{family:'Lexend',size:9},padding:8}
+    }},animation:{duration:350,easing:'easeInOutQuart'}
+  }});
+}
+
+function highlightArea(id){
+  active=id;
+  document.querySelectorAll('.mitem').forEach(el=>el.classList.toggle('active',el.dataset.id===id));
+  updateRadar();
+}
+function openMeta(){document.getElementById('meta-overlay').classList.add('open');}
+function openArea(id){highlightArea(id);buildArea(id);document.getElementById('area-overlay').classList.add('open');}
+
+function buildArea(id){
+  const a=AREAS.find(x=>x.id===id);
+  const col=LC[a.level];const t=tC();
+  // header — only acronym, no worker count duplicated
+  document.getElementById('ap-hdr-title').textContent=a.name;
+  document.getElementById('ap-hdr-sub').textContent=a.acronym;
+
+  const html=`
+<div class="ap-head">
+  <div class="ap-icon">${a.icon}</div>
+  <div style="flex:1">
+    <div class="ap-name">${a.name}</div>
+    <div class="ap-acr">${a.acronym} · ${a.w.toLocaleString('pt-PT')} trabalhadores · SIEP 2025 T4 · 30 jun. 2025</div>
+  </div>
+  <div style="text-align:right;flex-shrink:0">
+    <div class="ap-score" style="color:${col}">${a.score}</div>
+    <div class="ap-level" style="color:${col}">${LS[a.level]}</div>
+  </div>
+</div>
+<div class="ap-bar-wrap">
+  <div class="ap-bar-lbl"><span>Barómetro de Risco Geracional · APC</span><span>${a.score}/100</span></div>
+  <div class="ap-bar-track"><div class="ap-bar-fill" id="apbar" style="width:0%;background:${col}"></div></div>
+</div>
+<canvas id="prc" width="240" height="240" class="ap-radar-wrap"></canvas>
+<div class="ap-dims">
+  <div class="ap-dim"><div class="ap-dim-accent" style="background:${dcol(a.dims.envelhec)}"></div>
+    <div class="ap-dim-label">Envelhecimento · 35%</div>
+    <div class="ap-dim-val" style="color:${dcol(a.dims.envelhec)}">${a.dims.envelhec}</div>
+    <div class="ap-dim-sub">${a.gt55}% com 55+ anos · Ref. APC: 32,7%</div></div>
+  <div class="ap-dim"><div class="ap-dim-accent" style="background:${dcol(a.dims.renovacao)}"></div>
+    <div class="ap-dim-label">Défice renovação · 20%</div>
+    <div class="ap-dim-val" style="color:${dcol(a.dims.renovacao)}">${a.dims.renovacao}</div>
+    <div class="ap-dim-sub">${a.lt35}% com &lt;35 anos · Ref. APC: 15,3%</div></div>
+</div>
+<div class="ap-detail-grid">
+  <div class="ap-detail-box" style="border-left-color:${dcol(a.dims.pressao)}">
+    <div class="adb-left">
+      <div class="adb-label" style="color:${dcol(a.dims.pressao)}">Pressão<br>de saídas</div>
+      <div class="adb-score" style="color:${dcol(a.dims.pressao)}">${a.dims.pressao}</div>
+      <div class="adb-weight">peso 30%</div>
+      <div class="adb-nivel" style="color:${dcol(a.dims.pressao)}">${a.pressaoDetalhe.nivel}</div>
+      <div style="font-size:8px;color:var(--muted);margin-top:4px">${a.d2data.tx_saida}%/ano saídas<br>${a.d2data.tx_reforma}%/ano reformas<br>${a.d2data.anos}</div>
+    </div>
+    <div class="adb-items">${a.pressaoDetalhe.items.map(i=>`<div class="adb-item">${i}</div>`).join('')}</div>
+  </div>
+  <div class="ap-detail-box" style="border-left-color:${dcol(a.dims.automacao)}">
+    <div class="adb-left">
+      <div class="adb-label" style="color:${dcol(a.dims.automacao)}">Exposição<br>à IA</div>
+      <div class="adb-score" style="color:${dcol(a.dims.automacao)}">${a.dims.automacao}</div>
+      <div class="adb-weight">peso 15%</div>
+      <div class="adb-nivel" style="color:${dcol(a.dims.automacao)}">${a.iaDetalhe.nivel}</div>
+    </div>
+    <div class="adb-items">${a.iaDetalhe.items.map(i=>`<div class="adb-item">${i}</div>`).join('')}</div>
+  </div>
+</div>
+<div class="ap-tags">${a.tags.map(t=>`<span class="ptag ${TC[t.c]}">${t.t}</span>`).join('')}</div>
+<div class="ap-med-title">Medidas prioritárias recomendadas</div>
+${a.medidas.map(m=>`<div class="ap-medida">${m}</div>`).join('')}
+<div class="ap-fonte">Fonte: ${a.nota}</div>`;
+
+  document.getElementById('ap-body').innerHTML=html;
+  setTimeout(()=>{
+    const bar=document.getElementById('apbar'); if(bar)bar.style.width=a.score+'%';
+    if(pChart){pChart.destroy();pChart=null;}
+    const pc=document.getElementById('prc');
+    if(pc){
+      const t2=tC();
+      pChart=new Chart(pc.getContext('2d'),{type:'radar',
+        data:{labels:[['Envelhe-','cimento'],['Pressão','de saídas'],['Défice de','renovação'],['Exposição','à IA']],
+          datasets:[{data:Object.values(a.dims),backgroundColor:col+'14',borderColor:col+'99',borderWidth:1.5,
+            pointBackgroundColor:col,pointBorderColor:col,pointRadius:4,pointHoverRadius:6}]},
+        plugins:[{id:'wb',beforeDraw(ch){const c2=ch.canvas.getContext('2d');c2.save();c2.globalCompositeOperation='destination-over';c2.fillStyle='#ffffff';c2.fillRect(0,0,ch.width,ch.height);c2.restore();}}],
+        options:{responsive:false,plugins:{legend:{display:false},tooltip:{enabled:false}},
+          scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:t2.grid},angleLines:{color:t2.grid},
+            pointLabels:{color:t2.lbl,font:{family:'Lexend',size:9},padding:10}}},
+          animation:{duration:500}}
+      });
+    }
+  },60);
+}
+
+function printArea(){
+  const a=AREAS.find(x=>x.id===active); if(!a)return;
+  const now=new Date().toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
+  const canvas=document.getElementById('prc');
+  const radarImg=canvas?canvas.toDataURL('image/png'):'';
+  const bodyHTML=document.getElementById('ap-body').innerHTML;
+  const bodyWithImg=bodyHTML.replace(/<canvas[^>]*class="ap-radar-wrap"[^>]*><\/canvas>/,
+    radarImg?`<img class="print-radar-img" src="${radarImg}" alt="Radar ${a.name}"/>`:`<div style="height:8pt"></div>`);
+  const pz=document.getElementById('print-zone');
+  pz.innerHTML=`
+<div class="print-hdr">
+  <div class="print-hdr-l"><strong>Barómetro de Risco Geracional · Administração Pública Central Portuguesa</strong>SECRETARIA-GERAL DO GOVERNO | SUPORTE À DECISÃO · Unidade de Pesquisa e Estatísticas · 2026</div>
+  <div class="print-hdr-r">Impresso em ${now}<br>BOEP n.º 29 · SIEP 2025 T4 · jun. 2025</div>
+</div>
+<div class="print-body">${bodyWithImg}</div>
+<div class="print-ftr">
+  <span>SGGov · DSSD · UPE · Barómetro de Risco Geracional · APC · 2026</span>
+  <span>${a.nota}</span>
+</div>`;
+  pz.style.display='block'; window.print(); pz.style.display='none';
+}
+
+function closeOvl(id,e){if(e.target===document.getElementById(id))closeId(id);}
+function closeId(id){document.getElementById(id).classList.remove('open');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeId('meta-overlay');closeId('area-overlay');}});
+document.getElementById('min-list').addEventListener('click',e=>{
+  const it=e.target.closest('.mitem');
+  if(it&&!it.classList.contains('hidden'))openArea(it.dataset.id);
+});
+buildList(); updateRadar();
+</script>
+</body>
+</html>
